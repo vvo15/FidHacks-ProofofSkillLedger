@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Class-based dark mode for next-themes */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-mono, ui-monospace, monospace);
+  --font-display: var(--font-display, Georgia, serif);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+}
+
+:root {
+  --background: #fafaf8;
+  --foreground: #1a1a18;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f0;
+  --border: #e4e4e0;
+  --muted: #71717a;
+  --accent: #4f46e5;
+}
+
+.dark {
+  --background: #0f0f0e;
+  --foreground: #f5f5f0;
+  --surface: #1a1a18;
+  --surface-raised: #242420;
+  --border: #2a2a28;
+  --muted: #a1a19a;
+  --accent: #818cf8;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
