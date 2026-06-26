@@ -40,7 +40,7 @@ function YearCard({
             className="font-display font-bold leading-none block"
             style={{
               fontSize: 38,
-              color: isCurrentYear ? 'var(--accent)' : 'var(--foreground)',
+              color: isCurrentYear ? 'var(--accent)' : '#FFFFFF40',
             }}
           >
             {year}
@@ -322,12 +322,12 @@ export default async function InsightsPage() {
           <section className="flex flex-col gap-4">
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <h2 className="font-display text-white text-lg flex items-center gap-1 tracking-widest">
-                  Polaris
+                <h2 className="font-display text-white text-2xl flex items-center gap-1 tracking-widest">
+                  Polaris Suggestions
                 </h2>
               </div>
               <p className="font-mono text-xs text-[var(--muted)]">
-                Suggestions for growth based on what you build
+                Nice work! Look at these tools as inspiration for what you can build next:
               </p>
             </div>
 

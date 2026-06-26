@@ -26,6 +26,7 @@ export default async function RecapPage({
   if (yearRepos.length === 0) redirect('/insights')
 
   const groups = groupByLanguage(yearRepos)
+  const prevYearGroups = groupByLanguage(byYear.get(year - 1) ?? [])
 
-  return <RecapClient groups={groups} user={user} year={year} />
+  return <RecapClient groups={groups} prevYearGroups={prevYearGroups} user={user} year={year} />
 }

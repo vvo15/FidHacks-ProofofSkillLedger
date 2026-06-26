@@ -4,8 +4,6 @@ import { Handle, Position } from '@xyflow/react'
 import { Star } from 'lucide-react'
 import type { RepoWithLanguages } from '@/lib/milestones'
 import { getLanguageColor } from '@/lib/graphData'
-import { useState } from 'react'
-
 interface RepoNodeProps {
   data: RepoWithLanguages
   selected?: boolean
@@ -13,10 +11,18 @@ interface RepoNodeProps {
 
 const BUBBLE = 84
 
+// Seeded from repo ID so the glow size is identical on SSR and hydration
+function seededSize(seed: number): number {
+  let s = (seed + 0x6d2b79f5) | 0
+  let t = Math.imul(s ^ (s >>> 15), 1 | s)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return 30 + (((t ^ (t >>> 14)) >>> 0) / 4_294_967_296) * 70
+}
+
 export function RepoNode({ data, selected }: RepoNodeProps) {
   const color = data.dominantLanguage ? getLanguageColor(data.dominantLanguage) : '#6B7280'
-  const label = data.name;
-  const [size] = useState(() => Math.random() * 70 + 30);
+  const label = data.name
+  const size = seededSize(data.id)
 
   return (
     <>

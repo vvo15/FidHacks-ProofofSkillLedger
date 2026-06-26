@@ -5,49 +5,80 @@ import type { GitHubUser } from '@/types/github'
 import type { LanguageGroup } from '@/lib/graphData'
 import { getLanguageColor } from '@/lib/graphData'
 import type { RepoWithLanguages } from '@/lib/milestones'
-import { fetchCommitStats } from '@/app/actions'
+import { fetchCommitStats, fetchActivityData, fetchSearchStats, fetchCollabData } from '@/app/actions'
 import { ProgressBars } from './ProgressBars'
-import { IntroSlide } from './slides/IntroSlide'
-import { RepoCountSlide } from './slides/RepoCountSlide'
-import { LanguageSlide } from './slides/LanguageSlide'
-import { CommitSlide } from './slides/CommitSlide'
-import { MostStarredSlide } from './slides/MostStarredSlide'
-import { LinkedInSlide } from './slides/LinkedInSlide'
-import type { StorySlideComponent, StoryStats } from './types'
+import { CommitConfettiSlide } from './slides/CommitConfettiSlide'
+import { BugSlayerSlide } from './slides/BugSlayerSlide'
+import { GreenStreakSlide } from './slides/GreenStreakSlide'
+import { LanguageUnlockedSlide } from './slides/LanguageUnlockedSlide'
+import { FirstPRSlide } from './slides/FirstPRSlide'
+import { BiggestRefactorSlide } from './slides/BiggestRefactorSlide'
+import { LabCountSlide } from './slides/LabCountSlide'
+import { CollabSparkSlide } from './slides/CollabSparkSlide'
+import { MoonshotMomentSlide } from './slides/MoonshotMomentSlide'
+import { StackEvolutionSlide } from './slides/StackEvolutionSlide'
+import { ReviewRankSlide } from './slides/ReviewRankSlide'
+import { DevArchetypeSlide } from './slides/DevArchetypeSlide'
+import type { StorySlideComponent, StoryStats, StackLayer } from './types'
 
 const SLIDE_DURATION = 8000
 const HOLD_THRESHOLD = 200
 
 const SLIDES: StorySlideComponent[] = [
-  IntroSlide,
-  RepoCountSlide,
-  LanguageSlide,
-  CommitSlide,
-  MostStarredSlide,
-  LinkedInSlide,
+  CommitConfettiSlide,
+  BugSlayerSlide,
+  GreenStreakSlide,
+  LanguageUnlockedSlide,
+  FirstPRSlide,
+  BiggestRefactorSlide,
+  LabCountSlide,
+  CollabSparkSlide,
+  MoonshotMomentSlide,
+  StackEvolutionSlide,
+  ReviewRankSlide,
+  DevArchetypeSlide,
 ]
 
-function computeBaseStats(groups: LanguageGroup[], user: GitHubUser): StoryStats {
+function toLayers(repos: RepoWithLanguages[]): StackLayer[] {
+  const freq = new Map<string, number>()
+  for (const r of repos) {
+    const lang = r.dominantLanguage ?? 'Unknown'
+    if (lang !== 'Unknown') freq.set(lang, (freq.get(lang) ?? 0) + 1)
+  }
+  const total = [...freq.values()].reduce((a, b) => a + b, 0)
+  if (total === 0) return []
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([language, count]) => ({
+      language,
+      color: getLanguageColor(language),
+      pct: Math.round((count / total) * 100),
+    }))
+}
+
+function computeBaseStats(
+  groups: LanguageGroup[],
+  user: GitHubUser,
+  year?: number,
+  prevYearGroups?: LanguageGroup[],
+): StoryStats {
   const allRepos = groups.flatMap(g => g.repos)
 
+  // Favorite language from last 10 repos by pushed_at
   const last10 = [...allRepos]
     .sort((a, b) => new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime())
     .slice(0, 10)
-
   const langFreq = new Map<string, { count: number; lastPushed: number }>()
   for (const repo of last10) {
     const lang = repo.dominantLanguage ?? 'Unknown'
     const pushed = new Date(repo.pushed_at).getTime()
     const existing = langFreq.get(lang)
-    langFreq.set(lang, {
-      count: (existing?.count ?? 0) + 1,
-      lastPushed: Math.max(existing?.lastPushed ?? 0, pushed),
-    })
+    langFreq.set(lang, { count: (existing?.count ?? 0) + 1, lastPushed: Math.max(existing?.lastPushed ?? 0, pushed) })
   }
-
-  const sortedLangs = [...langFreq.entries()]
-    .sort((a, b) => b[1].count - a[1].count || b[1].lastPushed - a[1].lastPushed)
-
+  const sortedLangs = [...langFreq.entries()].sort(
+    (a, b) => b[1].count - a[1].count || b[1].lastPushed - a[1].lastPushed,
+  )
   const favLang = sortedLangs[0]
     ? { name: sortedLangs[0][0], color: getLanguageColor(sortedLangs[0][0]) }
     : null
@@ -57,8 +88,37 @@ function computeBaseStats(groups: LanguageGroup[], user: GitHubUser): StoryStats
     null,
   )
 
+  // Languages new this year vs previous year
+  const currentLangs = new Set(groups.map(g => g.language).filter(l => l !== 'Unknown'))
+  const prevLangs = new Set((prevYearGroups ?? []).map(g => g.language).filter(l => l !== 'Unknown'))
+  const newLanguages = [...currentLangs].filter(l => !prevLangs.has(l))
+
+  // Repos created this year
+  const targetYear = year ?? new Date().getFullYear()
+  const newReposCount = allRepos.filter(
+    r => new Date(r.created_at).getFullYear() === targetYear,
+  ).length
+
+  // Most forked repo
+  const mostForked = allRepos.reduce<RepoWithLanguages | null>(
+    (best, r) => (!best || r.forks_count > best.forks_count ? r : best),
+    null,
+  )
+  const mostForkedRepo =
+    mostForked && mostForked.forks_count > 0
+      ? { name: mostForked.name, forks: mostForked.forks_count }
+      : null
+
+  // Stack evolution: Q1 (Jan–Mar) vs Q4 (Oct–Dec) by pushed_at month
+  const q1Repos = allRepos.filter(r => new Date(r.pushed_at).getMonth() < 3)
+  const q4Repos = allRepos.filter(r => new Date(r.pushed_at).getMonth() >= 9)
+  const before = toLayers(q1Repos)
+  const after = toLayers(q4Repos)
+  const stackEvolution = before.length > 0 || after.length > 0 ? { before, after } : null
+
   return {
     user,
+    year,
     totalRepos: allRepos.length,
     languageGroups: groups,
     favoriteLanguage: favLang,
@@ -67,21 +127,39 @@ function computeBaseStats(groups: LanguageGroup[], user: GitHubUser): StoryStats
     commitStats: null,
     totalCommits: null,
     mostCommittedRepo: null,
+    weeklyCommits: null,
+    issuesClosed: null,
+    fastestFix: null,
+    currentStreak: null,
+    longestStreak: null,
+    newLanguages: newLanguages.length > 0 ? newLanguages : [],
+    firstPR: null,
+    biggestRefactor: null,
+    newReposCount,
+    mostForkedRepo,
+    collabSparkRepo: null,
+    moonshotPR: null,
+    stackEvolution,
+    reviewsGiven: null,
+    archetype: null,
   }
 }
 
 interface Props {
   groups: LanguageGroup[]
+  prevYearGroups?: LanguageGroup[]
   user: GitHubUser
   year?: number
   onClose: () => void
 }
 
-export function StoryViewer({ groups, user, year, onClose }: Props) {
+export function StoryViewer({ groups, prevYearGroups, user, year, onClose }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
-  const [stats, setStats] = useState<StoryStats>(() => ({ ...computeBaseStats(groups, user), year }))
+  const [stats, setStats] = useState<StoryStats>(() =>
+    computeBaseStats(groups, user, year, prevYearGroups),
+  )
 
   const startRef = useRef(Date.now())
   const pauseAccumRef = useRef(0)
@@ -92,7 +170,6 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
 
   useEffect(() => { currentRef.current = currentSlide }, [currentSlide])
 
-  // Reset slide timer
   useEffect(() => {
     startRef.current = Date.now()
     pauseAccumRef.current = 0
@@ -100,7 +177,6 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
     setProgress(0)
   }, [currentSlide])
 
-  // Animation loop
   useEffect(() => {
     if (isPaused) {
       if (pauseStartRef.current === null) pauseStartRef.current = Date.now()
@@ -111,7 +187,6 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
       pauseAccumRef.current += Date.now() - pauseStartRef.current
       pauseStartRef.current = null
     }
-
     let frame: number
     const tick = () => {
       const elapsed = Date.now() - startRef.current - pauseAccumRef.current
@@ -131,18 +206,21 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
     return () => cancelAnimationFrame(frame)
   }, [currentSlide, isPaused, onClose])
 
-  // Load commit stats asynchronously
+  // Commit counts per repo
   useEffect(() => {
     const allRepos = groups.flatMap(g => g.repos)
     fetchCommitStats(allRepos.map(r => ({ id: r.id, owner: r.owner.login, name: r.name })))
       .then(results => {
         const repoMap = new Map(allRepos.map(r => [r.id, r]))
         const totalCommits = results.reduce((s, r) => s + r.count, 0)
-        const mostCommitted = results.reduce<{ name: string; count: number } | null>((best, r) => {
-          const repo = repoMap.get(r.id)
-          if (!repo || r.count === 0) return best
-          return !best || r.count > best.count ? { name: repo.name, count: r.count } : best
-        }, null)
+        const mostCommitted = results.reduce<{ name: string; count: number } | null>(
+          (best, r) => {
+            const repo = repoMap.get(r.id)
+            if (!repo || r.count === 0) return best
+            return !best || r.count > best.count ? { name: repo.name, count: r.count } : best
+          },
+          null,
+        )
         setStats(prev => ({
           ...prev,
           commitStats: results.map(r => {
@@ -152,6 +230,49 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
           totalCommits,
           mostCommittedRepo: mostCommitted,
         }))
+      })
+      .catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Weekly activity, streak, and moonshot PR from events API
+  useEffect(() => {
+    const targetYear = year ?? new Date().getFullYear()
+    fetchActivityData(targetYear)
+      .then(data => {
+        setStats(prev => ({
+          ...prev,
+          weeklyCommits: data.weeklyCommits,
+          currentStreak: data.currentStreak,
+          longestStreak: data.longestStreak,
+          moonshotPR: data.moonshotPR,
+        }))
+      })
+      .catch(() => {})
+  }, [year])
+
+  // Issues, first PR, reviews, and biggest refactor from Search API
+  useEffect(() => {
+    const targetYear = year ?? new Date().getFullYear()
+    fetchSearchStats(targetYear)
+      .then(data => {
+        setStats(prev => ({
+          ...prev,
+          issuesClosed: data.issuesClosed,
+          fastestFix: data.fastestFix,
+          firstPR: data.firstPR,
+          reviewsGiven: data.reviewsGiven,
+          biggestRefactor: data.biggestRefactor,
+        }))
+      })
+      .catch(() => {})
+  }, [year])
+
+  // Contributor counts to find the most collaborative repo
+  useEffect(() => {
+    const allRepos = groups.flatMap(g => g.repos)
+    fetchCollabData(allRepos.slice(0, 5).map(r => ({ owner: r.owner.login, name: r.name })))
+      .then(data => {
+        setStats(prev => ({ ...prev, collabSparkRepo: data.collabSparkRepo }))
       })
       .catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,7 +287,6 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
     else onClose()
   }, [onClose])
 
-  // Arrow key + Escape navigation
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'ArrowLeft')  { e.preventDefault(); goBack() }
@@ -204,11 +324,8 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
         ].join(', '),
       }}
     >
-      {/* Progress bars */}
       <div className="relative z-10 flex flex-col gap-3 px-4 pt-4">
         <ProgressBars count={SLIDES.length} current={currentSlide} progress={progress} />
-
-        {/* Header row */}
         <div className="flex items-center gap-2">
           <img
             src={user.avatar_url}
@@ -227,11 +344,8 @@ export function StoryViewer({ groups, user, year, onClose }: Props) {
         </div>
       </div>
 
-      {/* Slide */}
       <div className="flex-1 relative overflow-hidden">
         <Slide key={currentSlide} stats={stats} isActive progress={progress} />
-
-        {/* Navigation / pause zones — left half goes back, right half goes forward */}
         <div className="absolute inset-0 flex pointer-events-none">
           <div
             className="flex-1 pointer-events-auto"
