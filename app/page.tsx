@@ -41,7 +41,7 @@ export default async function LandingPage() {
 
       {/* Bottom decoration */}
       <footer className="absolute bottom-8 font-mono text-xs text-[var(--muted)]">
-        storybook
+        butterfly effect
       </footer>
     </main>
   )

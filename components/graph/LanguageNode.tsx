@@ -6,6 +6,8 @@ export interface LanguageNodeData {
   language: string
   repoCount: number
   color: string
+  orbitRadii: number[]
+  showOrbits: boolean
 }
 
 interface LanguageNodeProps {
@@ -32,20 +34,54 @@ export function LanguageNode({ data }: LanguageNodeProps) {
           pointerEvents: 'none',
         }}
       />
+      <Handle
+        id="cin"
+        type="target"
+        position={Position.Top}
+        style={{
+          opacity: 0,
+          width: 0,
+          height: 0,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          border: 'none',
+          pointerEvents: 'none',
+        }}
+      />
 
+      {data.showOrbits && data.orbitRadii.length > 0 && (
+        <svg
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: ORB,
+            height: ORB,
+            overflow: 'visible',
+            pointerEvents: 'none',
+          }}
+        >
+          {data.orbitRadii.map((r, idx) => (
+            <circle
+              key={idx}
+              cx={ORB / 2}
+              cy={ORB / 2}
+              r={r}
+              fill="none"
+              stroke={color}
+              strokeOpacity={0.1}
+              strokeWidth={1}
+            />
+          ))}
+        </svg>
+      )}
       <div
         className="flex flex-col items-center justify-center gap-1 select-none cursor-pointer"
         style={{
           width: ORB,
           height: ORB,
           borderRadius: '50%',
-          // background: `radial-gradient(circle at 50% 50%,
-          //   rgba(255,255,255,0.98) 0%,
-          //   ${color} 16%,
-          //   ${color}88 36%,
-          //   ${color}33 60%,
-          //   transparent 86%
-          // )`,
           boxShadow: `0 0 14px ${color}, 0 0 36px ${color}cc, 0 0 68px ${color}77, 0 0 110px ${color}44`,
         }}
       >

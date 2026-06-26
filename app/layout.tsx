@@ -21,7 +21,7 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'storybook',
+  title: 'butterfly effect',
   description: 'Your GitHub story, visualised.',
 }
 

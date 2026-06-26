@@ -42,3 +42,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+@keyframes moonSparkle {
+  0%, 100% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 0.85; transform: scale(1); }
+}
+
+@keyframes butterflyFloat {
+  0%, 100% { transform: translateY(0) rotate(-2deg) scaleX(1); }
+  50% { transform: translateY(-10px) rotate(2deg) scaleX(1.04); }
+}
+
+@keyframes iridescenceShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
